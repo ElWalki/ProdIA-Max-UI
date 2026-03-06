@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Play, Plus, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Play, Plus, Minus, RotateCcw, ZoomIn, ZoomOut, Piano } from 'lucide-react';
 import {
   ChordAudioEngine, NOTE_NAMES, noteNameToMidi, midiToNoteName, identifyChord,
 } from '../../services/chordService';
@@ -18,7 +18,10 @@ interface PianoRollModalProps {
 const LOWEST_MIDI = 36;  // C2
 const HIGHEST_MIDI = 83; // B5
 const TOTAL_NOTES = HIGHEST_MIDI - LOWEST_MIDI + 1;
-const GRID_COLS = 16;
+const DEFAULT_GRID_COLS = 16;
+const MIN_GRID_COLS = 4;
+const MAX_GRID_COLS = 64;
+const COL_WIDTH = 48;
 
 const BLACK_NOTE_INDICES = new Set([1, 3, 6, 8, 10]); // C#, D#, F#, G#, A#
 
@@ -35,7 +38,9 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
   const { t } = useTranslation();
   const [placedNotes, setPlacedNotes] = useState<PlacedNote[]>([]);
   const [rowHeight, setRowHeight] = useState(14);
+  const [gridCols, setGridCols] = useState(DEFAULT_GRID_COLS);
   const gridRef = useRef<HTMLDivElement>(null);
+  const keysRef = useRef<HTMLDivElement>(null);
 
   const isBlackKey = useCallback((midi: number) => BLACK_NOTE_INDICES.has(midi % 12), []);
 
@@ -101,18 +106,13 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#333] bg-[#16162a] rounded-t-2xl shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-red-500 hover:brightness-125 cursor-pointer" onClick={onClose} />
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Piano className="w-4 h-4 text-accent-400" />
             <span className="text-xs font-semibold text-[#ddd] tracking-wide">
               {t('chords.pianoRollTitle', 'Piano Roll')}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Identified chord */}
             {chordName && (
               <span className="px-2.5 py-1 rounded-md bg-accent-500/20 text-accent-300 text-xs font-bold">
                 {chordName}
@@ -123,6 +123,20 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
             </span>
           </div>
           <div className="flex items-center gap-1">
+            {/* Steps +/- */}
+            <span className="text-[9px] text-[#666] mr-1">{gridCols} steps</span>
+            <button onClick={() => setGridCols(c => Math.max(MIN_GRID_COLS, c - 4))}
+              className="p-1 rounded text-[#888] hover:text-white hover:bg-[#333] transition-colors"
+              title={t('chords.removeSteps', 'Remove steps')}>
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setGridCols(c => Math.min(MAX_GRID_COLS, c + 4))}
+              className="p-1 rounded text-[#888] hover:text-white hover:bg-[#333] transition-colors"
+              title={t('chords.addSteps', 'Add steps')}>
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-px h-4 bg-[#333] mx-1" />
+            {/* Zoom */}
             <button onClick={() => setRowHeight(h => Math.max(8, h - 2))}
               className="p-1 rounded text-[#888] hover:text-white hover:bg-[#333] transition-colors">
               <ZoomOut className="w-3.5 h-3.5" />
@@ -131,8 +145,9 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
               className="p-1 rounded text-[#888] hover:text-white hover:bg-[#333] transition-colors">
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
+            <div className="w-px h-4 bg-[#333] mx-1" />
             <button onClick={onClose}
-              className="p-1 rounded text-[#888] hover:text-red-400 hover:bg-red-500/10 transition-colors ml-1">
+              className="p-1 rounded text-[#888] hover:text-red-400 hover:bg-red-500/10 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -144,7 +159,7 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
           <div className="w-14 shrink-0 border-r border-[#333] overflow-y-auto"
             style={{ scrollbarWidth: 'none' }}
             ref={el => {
-              // sync scroll with grid
+              (keysRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
               if (el && gridRef.current) {
                 el.onscroll = () => { if (gridRef.current) gridRef.current.scrollTop = el.scrollTop; };
               }
@@ -178,8 +193,11 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
             ref={gridRef}
             className="flex-1 overflow-auto"
             style={{ scrollbarWidth: 'thin', scrollbarColor: '#444 #1a1a2e' }}
+            onScroll={e => {
+              if (keysRef.current) keysRef.current.scrollTop = (e.target as HTMLDivElement).scrollTop;
+            }}
           >
-            <div style={{ minWidth: GRID_COLS * 48 }}>
+            <div style={{ minWidth: gridCols * COL_WIDTH }}>
               {rows.map(midi => {
                 const isBlack = isBlackKey(midi);
                 const isC = isCNote(midi);
@@ -191,14 +209,14 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
                       isBlack ? 'border-[#222]' : isC ? 'border-[#333]' : 'border-[#2a2a3a]'
                     }`}
                   >
-                    {Array.from({ length: GRID_COLS }, (_, col) => {
+                    {Array.from({ length: gridCols }, (_, col) => {
                       const hasNote = placedNotes.some(n => n.midi === midi && n.col === col);
                       const isBeat = col % 4 === 0;
                       return (
                         <div
                           key={col}
                           onClick={() => toggleCell(midi, col)}
-                          style={{ width: 48, height: rowHeight }}
+                          style={{ width: COL_WIDTH, height: rowHeight }}
                           className={`shrink-0 border-r cursor-pointer transition-all
                             ${isBeat ? 'border-[#333]' : 'border-[#222]'}
                             ${hasNote
@@ -219,7 +237,7 @@ export default function PianoRollModal({ isOpen, onClose, onAddChord, engine }: 
 
         {/* ── Bottom toolbar ── */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#333] bg-[#16162a] rounded-b-2xl shrink-0">
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap max-w-[40%] overflow-hidden">
             {[...new Set(placedNotes.map(n => n.midi))].sort((a, b) => a - b).map(m => (
               <span key={m} className="px-1.5 py-0.5 rounded bg-[#2a2a4a] text-[9px] font-mono text-[#aaa]">
                 {noteLabel(m)}

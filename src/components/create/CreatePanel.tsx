@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu, ChevronDown, Check } from 'lucide-react';
+import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu, ChevronDown, Check, Palette } from 'lucide-react';
 import CollapsibleSection from '../ui/CollapsibleSection';
 import SliderField from '../ui/SliderField';
 import SelectField from '../ui/SelectField';
 import ToggleField from '../ui/ToggleField';
 import AudioSections from './AudioSections';
 import ChordEditor from './ChordEditor';
-import SectionControls from './SectionControls';
+import SectionControls, { SECTION_TAGS } from './SectionControls';
 import LoraManager from './LoraManager';
 import MicRecorder from './MicRecorder';
 import GpuMiniBar from './GpuMiniBar';
@@ -109,6 +109,10 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
   // Mic recorder
   const [showMicRecorder, setShowMicRecorder] = useState(false);
   const [micTarget, setMicTarget] = useState<'reference' | 'cover' | 'vocal'>('vocal');
+
+  // Colored lyrics toggle
+  const [coloredLyrics, setColoredLyrics] = useState(true);
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
   // Consume reuseParams from parent
   useEffect(() => {
@@ -308,6 +312,29 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
     await handleAudioSectionUpload(file, micTarget === 'cover' ? 'source' : micTarget);
     setShowMicRecorder(false);
   }, [handleAudioSectionUpload, micTarget]);
+
+  // Build tag→hex color map for lyrics coloring
+  const tagColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    SECTION_TAGS.forEach(s => { map[s.tag.toLowerCase()] = s.hex; });
+    return map;
+  }, []);
+
+  // Colorize lyrics lines based on current section tag
+  const renderColoredLyrics = useCallback((text: string) => {
+    const lines = text.split('\n');
+    let currentColor = '#c8c8d8'; // default text color
+    return lines.map((line, i) => {
+      const trimmed = line.trim().toLowerCase();
+      const matchTag = Object.keys(tagColorMap).find(t => trimmed === t || trimmed.startsWith(t));
+      if (matchTag) currentColor = tagColorMap[matchTag];
+      return (
+        <div key={i} style={{ color: currentColor, minHeight: '1.2em' }}>
+          {line || '\u00a0'}
+        </div>
+      );
+    });
+  }, [tagColorMap]);
 
   // Insert section tag into lyrics
   const handleInsertSectionTag = useCallback((tag: string) => {
@@ -563,17 +590,41 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 onVocalClear={() => { set('vocalAudioUrl', undefined); set('vocalAudioTitle', undefined); }}
                 onRecord={() => { setMicTarget('vocal'); setShowMicRecorder(true); }}
               />
-              <textarea
-                value={params.lyrics}
-                onChange={e => set('lyrics', e.target.value)}
-                placeholder={params.instrumental ? t('create.instrumentalNoLyrics', 'Instrumental mode — lyrics disabled') : t('create.lyricsPlaceholder')}
-                rows={6}
-                ref={lyricsRef}
-                disabled={params.instrumental}
-                className={`w-full bg-surface-100 border border-surface-300 rounded-md px-2 py-1.5 text-sm text-surface-900 placeholder:text-surface-400 resize-y min-h-[100px] max-h-[500px] font-mono text-xs ${
-                  params.instrumental ? 'opacity-40 cursor-not-allowed' : ''
-                }`}
-              />
+              {/* Lyrics with colored overlay */}
+              <div className="relative" ref={lyricsContainerRef}>
+                {/* Color toggle button */}
+                <button
+                  onClick={() => setColoredLyrics(v => !v)}
+                  className={`absolute top-1 right-1 z-10 p-1 rounded transition-colors ${
+                    coloredLyrics
+                      ? 'text-accent-400 bg-accent-500/15 hover:bg-accent-500/25'
+                      : 'text-surface-500 hover:text-surface-700 hover:bg-surface-200'
+                  }`}
+                  title={t('create.toggleColors', 'Toggle section colors')}
+                >
+                  <Palette className="w-3.5 h-3.5" />
+                </button>
+                {/* Colored overlay (visible when coloredLyrics is on and there's text) */}
+                {coloredLyrics && params.lyrics && !params.instrumental && (
+                  <div
+                    className="absolute inset-0 pointer-events-none px-2 py-1.5 font-mono text-xs leading-[1.2em] overflow-hidden rounded-md"
+                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                  >
+                    {renderColoredLyrics(params.lyrics)}
+                  </div>
+                )}
+                <textarea
+                  value={params.lyrics}
+                  onChange={e => set('lyrics', e.target.value)}
+                  placeholder={params.instrumental ? t('create.instrumentalNoLyrics', 'Instrumental mode — lyrics disabled') : t('create.lyricsPlaceholder')}
+                  rows={6}
+                  ref={lyricsRef}
+                  disabled={params.instrumental}
+                  className={`w-full bg-surface-100 border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 resize-y min-h-[100px] max-h-[500px] font-mono text-xs leading-[1.2em] ${
+                    params.instrumental ? 'opacity-40 cursor-not-allowed text-surface-900' : ''
+                  } ${coloredLyrics && params.lyrics ? 'text-transparent caret-surface-900 selection:bg-accent-500/30' : 'text-surface-900'}`}
+                />
+              </div>
               <ToggleField
                 label={t('create.instrumental')}
                 value={params.instrumental}

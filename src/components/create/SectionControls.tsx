@@ -12,15 +12,15 @@ interface SectionControlsProps {
   onInsertTag?: (tag: string) => void;
 }
 
-const SECTION_TAGS = [
-  { tag: '[Intro]', color: 'text-blue-400' },
-  { tag: '[Verse]', color: 'text-green-400' },
-  { tag: '[Pre-Chorus]', color: 'text-yellow-400' },
-  { tag: '[Chorus]', color: 'text-accent-400' },
-  { tag: '[Bridge]', color: 'text-brand-400' },
-  { tag: '[Outro]', color: 'text-orange-400' },
-  { tag: '[Rap]', color: 'text-red-400' },
-  { tag: '[Break]', color: 'text-surface-500' },
+export const SECTION_TAGS = [
+  { tag: '[Intro]', color: 'text-blue-400', hex: '#60a5fa' },
+  { tag: '[Verse]', color: 'text-green-400', hex: '#4ade80' },
+  { tag: '[Pre-Chorus]', color: 'text-yellow-400', hex: '#facc15' },
+  { tag: '[Chorus]', color: 'text-accent-400', hex: '#818cf8' },
+  { tag: '[Bridge]', color: 'text-brand-400', hex: '#c084fc' },
+  { tag: '[Outro]', color: 'text-orange-400', hex: '#fb923c' },
+  { tag: '[Rap]', color: 'text-red-400', hex: '#f87171' },
+  { tag: '[Break]', color: 'text-surface-500', hex: '#71717a' },
 ];
 
 const MEASURE_OPTIONS = [4, 8, 16, 32];

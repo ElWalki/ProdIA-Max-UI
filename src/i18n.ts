@@ -76,6 +76,7 @@ const en = {
     loadTemplate: 'Load',
     deleteTemplate: 'Delete template',
     notDownloaded: 'Not loaded',
+    toggleColors: 'Toggle section colors',
   },
   pagination: {
     show: 'Show',
@@ -356,6 +357,8 @@ const en = {
     clear: 'Clear',
     previewChord: 'Preview',
     addCustom: 'Add Chord',
+    addSteps: 'Add steps',
+    removeSteps: 'Remove steps',
     major: 'Major',
     minor: 'Minor',
     beats: 'Beats',
@@ -461,6 +464,7 @@ const es: typeof en = {
     loadTemplate: 'Cargar',
     deleteTemplate: 'Eliminar plantilla',
     notDownloaded: 'No cargado',
+    toggleColors: 'Alternar colores de sección',
   },
   pagination: {
     show: 'Mostrar',
@@ -741,6 +745,8 @@ const es: typeof en = {
     clear: 'Limpiar',
     previewChord: 'Vista previa',
     addCustom: 'Agregar Acorde',
+    addSteps: 'Agregar pasos',
+    removeSteps: 'Quitar pasos',
     major: 'Mayor',
     minor: 'Menor',
     beats: 'Tiempos',
