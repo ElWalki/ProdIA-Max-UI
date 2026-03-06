@@ -42,6 +42,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const srcFileInputRef = useRef<HTMLInputElement>(null);
   const lyricsRef = useRef<HTMLTextAreaElement>(null);
+  const simpleTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // LoRA state
   const [showLoraManager, setShowLoraManager] = useState(false);
@@ -84,21 +85,21 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
     localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
   }, [savedTemplates]);
 
-  // DIT Model options (correct backend directory names)
-  const DIT_MODELS = [
-    { value: 'acestep-v15-sft', label: 'SFT', color: 'accent' },
-    { value: 'acestep-v15-base', label: 'Base', color: 'emerald' },
-    { value: 'acestep-v15-turbo', label: 'Turbo', color: 'amber' },
-  ];
+  // DIT Model options — fallback labels for known models
+  const MODEL_LABELS: Record<string, { label: string; color: string }> = {
+    'acestep-v15-sft': { label: 'SFT', color: 'accent' },
+    'acestep-v15-base': { label: 'Base', color: 'emerald' },
+    'acestep-v15-turbo': { label: 'Turbo', color: 'amber' },
+  };
 
-  // Model status — which models are loaded in backend
-  const [loadedModels, setLoadedModels] = useState<string[]>([]);
+  // Model status — which models are available in backend checkpoints
+  const [availableModels, setAvailableModels] = useState<{ name: string; is_default: boolean }[]>([]);
   const [showModelMenu, setShowModelMenu] = useState(false);
 
-  // Fetch loaded models on mount
+  // Fetch available models from backend on mount
   useEffect(() => {
     generateApi.getLoadedModels().then(r => {
-      setLoadedModels(r.models.map(m => m.name));
+      setAvailableModels(r.models);
       // If no model selected yet, pick the default
       if (!params.ditModel && r.default_model) {
         set('ditModel', r.default_model);
@@ -386,44 +387,48 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
             >
               <Cpu className="w-3 h-3 text-surface-400" />
               <span className="font-semibold text-surface-800">
-                {DIT_MODELS.find(m => m.value === params.ditModel)?.label || 'Turbo'}
+                {MODEL_LABELS[params.ditModel || '']?.label || params.ditModel || 'Select'}
               </span>
-              {loadedModels.includes(params.ditModel || '') && (
+              {availableModels.some(m => m.name === params.ditModel) && (
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               )}
               <ChevronDown className="w-3 h-3 text-surface-400" />
             </button>
             {showModelMenu && (
-              <div className="absolute left-0 top-full mt-1 w-52 bg-surface-100 border border-surface-300 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute left-0 top-full mt-1 w-56 bg-surface-100 border border-surface-300 rounded-xl shadow-2xl z-50 overflow-hidden">
                 <div className="px-3 py-1.5 border-b border-surface-300/40">
                   <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">{t('create.ditModel', 'Model')}</span>
                 </div>
-                {DIT_MODELS.map(m => {
-                  const isLoaded = loadedModels.includes(m.value);
-                  const isSelected = params.ditModel === m.value;
+                {availableModels.length === 0 && (
+                  <div className="px-3 py-3 text-[10px] text-surface-400 text-center">
+                    {t('create.noModels', 'No models found in checkpoints/')}
+                  </div>
+                )}
+                {availableModels.map(m => {
+                  const info = MODEL_LABELS[m.name];
+                  const isSelected = params.ditModel === m.name;
+                  const displayLabel = info?.label || m.name;
+                  const dotColor = info?.color === 'amber' ? 'bg-amber-500'
+                    : info?.color === 'emerald' ? 'bg-emerald-500'
+                    : 'bg-accent-500';
                   return (
                     <button
-                      key={m.value}
-                      onClick={() => { set('ditModel', m.value); setShowModelMenu(false); }}
+                      key={m.name}
+                      onClick={() => { set('ditModel', m.name); setShowModelMenu(false); }}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
                         isSelected ? 'bg-accent-500/10' : 'hover:bg-surface-200'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        m.color === 'amber' ? 'bg-amber-500' :
-                        m.color === 'emerald' ? 'bg-emerald-500' : 'bg-accent-500'
-                      }`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
                       <div className="flex-1 min-w-0">
                         <span className={`text-xs font-semibold block ${isSelected ? 'text-accent-400' : 'text-surface-800'}`}>
-                          {m.label}
+                          {displayLabel}
                         </span>
-                        <span className="text-[10px] text-surface-400 block">{m.value}</span>
+                        <span className="text-[10px] text-surface-400 block truncate">{m.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {isLoaded ? (
+                        {m.is_default && (
                           <span className="text-[9px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-medium">{t('settings.loaded', 'Loaded')}</span>
-                        ) : (
-                          <span className="text-[9px] text-surface-400 bg-surface-200 px-1.5 py-0.5 rounded font-medium">{t('create.notDownloaded', 'Not loaded')}</span>
                         )}
                         {isSelected && <Check className="w-3 h-3 text-accent-400" />}
                       </div>
@@ -529,13 +534,36 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
         {/* Simple mode */}
         {!params.customMode && (
           <div className="space-y-3">
-            <textarea
-              value={params.songDescription || ''}
-              onChange={e => set('songDescription', e.target.value)}
-              placeholder={t('create.descriptionPlaceholder')}
-              rows={4}
-              className="w-full bg-surface-100 border border-surface-300 rounded-lg px-3 py-2 text-sm text-surface-900 placeholder:text-surface-400 resize-y min-h-[80px] max-h-[400px] focus:ring-1 focus:ring-accent-500"
-            />
+            <div className="relative">
+              <textarea
+                value={params.songDescription || ''}
+                onChange={e => set('songDescription', e.target.value)}
+                placeholder={t('create.descriptionPlaceholder')}
+                rows={4}
+                ref={el => { (simpleTextareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el; }}
+                className="w-full bg-surface-100 border border-surface-300 rounded-lg px-3 py-2 text-sm text-surface-900 placeholder:text-surface-400 min-h-[80px] max-h-[400px] no-scrollbar focus:ring-1 focus:ring-accent-500"
+              />
+              <div
+                className="textarea-resize-handle"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  const textarea = simpleTextareaRef.current;
+                  if (!textarea) return;
+                  const startY = e.clientY;
+                  const startH = textarea.offsetHeight;
+                  const onMove = (ev: MouseEvent) => {
+                    const newH = Math.max(80, Math.min(400, startH + ev.clientY - startY));
+                    textarea.style.height = `${newH}px`;
+                  };
+                  const onUp = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                  };
+                  document.addEventListener('mousemove', onMove);
+                  document.addEventListener('mouseup', onUp);
+                }}
+              />
+            </div>
             <ToggleField
               label={t('create.instrumental')}
               value={params.instrumental}
@@ -595,7 +623,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 {/* Color toggle button */}
                 <button
                   onClick={() => setColoredLyrics(v => !v)}
-                  className={`absolute top-1 right-1 z-10 p-1 rounded transition-colors ${
+                  className={`absolute top-1 right-1 z-20 p-1 rounded transition-colors ${
                     coloredLyrics
                       ? 'text-accent-400 bg-accent-500/15 hover:bg-accent-500/25'
                       : 'text-surface-500 hover:text-surface-700 hover:bg-surface-200'
@@ -604,14 +632,18 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 >
                   <Palette className="w-3.5 h-3.5" />
                 </button>
-                {/* Colored overlay (visible when coloredLyrics is on and there's text) */}
+                {/* Colored overlay — sits behind transparent textarea text */}
                 {coloredLyrics && params.lyrics && !params.instrumental && (
                   <div
                     ref={overlayRef}
-                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none px-2 py-1.5 font-mono text-xs overflow-hidden rounded-md border border-transparent"
-                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.5' }}
+                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none overflow-hidden rounded-md z-[1]"
                   >
-                    {renderColoredLyrics(params.lyrics)}
+                    <div
+                      className="px-2 py-1.5 font-mono text-xs"
+                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.5' }}
+                    >
+                      {renderColoredLyrics(params.lyrics)}
+                    </div>
                   </div>
                 )}
                 <textarea
@@ -627,9 +659,30 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                   ref={lyricsRef}
                   disabled={params.instrumental}
                   style={coloredLyrics && params.lyrics ? { lineHeight: '1.5', color: 'transparent', caretColor: '#e0e0ee' } : { lineHeight: '1.5' }}
-                  className={`w-full border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 resize-y min-h-[100px] max-h-[500px] font-mono text-xs ${
+                  className={`relative z-[2] w-full border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 min-h-[100px] max-h-[500px] font-mono text-xs no-scrollbar ${
                     params.instrumental ? 'opacity-40 cursor-not-allowed text-surface-900 bg-surface-100' : ''
-                  } ${coloredLyrics && params.lyrics ? 'bg-surface-100' : 'bg-surface-100 text-surface-900'}`}
+                  } ${coloredLyrics && params.lyrics ? 'bg-transparent' : 'bg-surface-100 text-surface-900'}`}
+                />
+                {/* Bottom resize handle */}
+                <div
+                  className="textarea-resize-handle"
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    const textarea = lyricsRef.current;
+                    if (!textarea) return;
+                    const startY = e.clientY;
+                    const startH = textarea.offsetHeight;
+                    const onMove = (ev: MouseEvent) => {
+                      const newH = Math.max(100, Math.min(500, startH + ev.clientY - startY));
+                      textarea.style.height = `${newH}px`;
+                    };
+                    const onUp = () => {
+                      document.removeEventListener('mousemove', onMove);
+                      document.removeEventListener('mouseup', onUp);
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                  }}
                 />
               </div>
               <ToggleField

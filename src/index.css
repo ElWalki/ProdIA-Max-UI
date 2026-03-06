@@ -54,13 +54,79 @@ body { overflow: hidden; }
 ::-webkit-scrollbar-thumb { background: var(--color-surface-300); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-surface-400); }
 
-/* ── Subtle textarea resize grip ── */
-textarea::-webkit-resizer {
-  background: linear-gradient(135deg, transparent 60%, var(--color-surface-400) 60%, var(--color-surface-400) 65%, transparent 65%, transparent 75%, var(--color-surface-400) 75%, var(--color-surface-400) 80%, transparent 80%);
-  border-radius: 0 0 4px 0;
+/* ── Textarea: vertical resize only, bottom-edge handle ── */
+textarea {
+  cursor: text;
+  resize: vertical;
 }
-textarea { cursor: text; }
-textarea:hover::-webkit-resizer { background: linear-gradient(135deg, transparent 60%, var(--color-accent-500) 60%, var(--color-accent-500) 65%, transparent 65%, transparent 75%, var(--color-accent-500) 75%, var(--color-accent-500) 80%, transparent 80%); }
+textarea::-webkit-resizer {
+  display: none;
+}
+
+/* ── Custom resize handle (bottom bar) ── */
+.textarea-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.textarea-resize-handle::after {
+  content: '';
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-surface-400);
+  transition: background 0.15s;
+}
+.textarea-resize-handle:hover::after {
+  background: var(--color-accent-500);
+}
+
+/* ── Panel divider (horizontal resize) ── */
+.panel-divider {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  flex-shrink: 0;
+}
+.panel-divider:hover,
+.panel-divider.active {
+  background: var(--color-accent-500);
+}
+.panel-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--color-surface-400);
+  transition: background 0.15s;
+}
+.panel-divider:hover::after,
+.panel-divider.active::after {
+  background: var(--color-accent-300);
+}
+
+/* ── Hide scrollbars in panels ── */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* ── Hide number input spinners ── */
 input[type="number"]::-webkit-inner-spin-button,

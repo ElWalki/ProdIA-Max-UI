@@ -56,6 +56,8 @@ export default function App() {
   const [reuseParams, setReuseParams] = useState<GenerationParams | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(420);
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('acestep_theme') as 'dark' | 'light') || 'dark';
   });
@@ -411,7 +413,7 @@ export default function App() {
       case 'create':
         return (
           <div className="flex-1 flex overflow-hidden">
-            <div className="w-[420px] min-w-[380px] border-r border-surface-200 flex flex-col overflow-hidden">
+            <div style={{ width: panelWidth, minWidth: 320, maxWidth: 600 }} className="border-r border-surface-200 flex flex-col overflow-hidden">
               <CreatePanel
                 onGenerate={handleGenerate}
                 isGenerating={isGenerating}
@@ -422,6 +424,27 @@ export default function App() {
                 generationStage={jobs[0]?.stage}
               />
             </div>
+            {/* Resizable divider */}
+            <div
+              className={`panel-divider${isDraggingPanel ? ' active' : ''}`}
+              onMouseDown={e => {
+                e.preventDefault();
+                setIsDraggingPanel(true);
+                const startX = e.clientX;
+                const startW = panelWidth;
+                const onMove = (ev: MouseEvent) => {
+                  const newW = Math.max(320, Math.min(600, startW + ev.clientX - startX));
+                  setPanelWidth(newW);
+                };
+                const onUp = () => {
+                  setIsDraggingPanel(false);
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+            />
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-200">
                 <h2 className="text-sm font-semibold text-surface-800">
