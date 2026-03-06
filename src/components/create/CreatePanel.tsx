@@ -113,6 +113,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
   // Colored lyrics toggle
   const [coloredLyrics, setColoredLyrics] = useState(true);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Consume reuseParams from parent
   useEffect(() => {
@@ -329,7 +330,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
       const matchTag = Object.keys(tagColorMap).find(t => trimmed === t || trimmed.startsWith(t));
       if (matchTag) currentColor = tagColorMap[matchTag];
       return (
-        <div key={i} style={{ color: currentColor, minHeight: '1.2em' }}>
+        <div key={i} style={{ color: currentColor, minHeight: '1.5em', lineHeight: '1.5' }}>
           {line || '\u00a0'}
         </div>
       );
@@ -347,13 +348,12 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
     const text = params.lyrics || '';
     const before = text.slice(0, start);
     const after = text.slice(start);
-    // Ensure tag starts on its own line
-    const needsLeadingBreak = before.length > 0 && !before.endsWith('\n');
-    // Ensure a blank line before tag if previous line has content (not another tag)
-    const needsExtraBreak = needsLeadingBreak || (before.endsWith('\n') && before.length > 1 && !before.endsWith('\n\n'));
-    const prefix = needsExtraBreak ? '\n' : '';
-    // Ensure cursor ends on next line after tag
-    const suffix = after.startsWith('\n') ? '\n' : '\n\n';
+    // Blank line before tag (unless at start or already has blank line)
+    const needsBlankBefore = before.length > 0 && !before.endsWith('\n\n') && !before.endsWith('\n');
+    const needsNewlineBefore = before.length > 0 && !before.endsWith('\n');
+    const prefix = needsBlankBefore ? '\n\n' : needsNewlineBefore ? '\n' : '';
+    // Just one newline after tag — cursor goes right below
+    const suffix = '\n';
     const inserted = `${prefix}${tag}${suffix}`;
     set('lyrics', `${before}${inserted}${after}`);
     const cursorPos = start + inserted.length;
@@ -607,8 +607,9 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 {/* Colored overlay (visible when coloredLyrics is on and there's text) */}
                 {coloredLyrics && params.lyrics && !params.instrumental && (
                   <div
-                    className="absolute inset-0 pointer-events-none px-2 py-1.5 font-mono text-xs leading-[1.2em] overflow-hidden rounded-md"
-                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                    ref={overlayRef}
+                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none px-2 py-1.5 font-mono text-xs overflow-hidden rounded-md border border-transparent"
+                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.5' }}
                   >
                     {renderColoredLyrics(params.lyrics)}
                   </div>
@@ -616,13 +617,19 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 <textarea
                   value={params.lyrics}
                   onChange={e => set('lyrics', e.target.value)}
+                  onScroll={e => {
+                    if (overlayRef.current) {
+                      overlayRef.current.scrollTop = (e.target as HTMLTextAreaElement).scrollTop;
+                    }
+                  }}
                   placeholder={params.instrumental ? t('create.instrumentalNoLyrics', 'Instrumental mode — lyrics disabled') : t('create.lyricsPlaceholder')}
                   rows={6}
                   ref={lyricsRef}
                   disabled={params.instrumental}
-                  className={`w-full bg-surface-100 border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 resize-y min-h-[100px] max-h-[500px] font-mono text-xs leading-[1.2em] ${
-                    params.instrumental ? 'opacity-40 cursor-not-allowed text-surface-900' : ''
-                  } ${coloredLyrics && params.lyrics ? 'text-transparent caret-surface-900 selection:bg-accent-500/30' : 'text-surface-900'}`}
+                  style={coloredLyrics && params.lyrics ? { lineHeight: '1.5', color: 'transparent', caretColor: '#e0e0ee' } : { lineHeight: '1.5' }}
+                  className={`w-full border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 resize-y min-h-[100px] max-h-[500px] font-mono text-xs ${
+                    params.instrumental ? 'opacity-40 cursor-not-allowed text-surface-900 bg-surface-100' : ''
+                  } ${coloredLyrics && params.lyrics ? 'bg-surface-100' : 'bg-surface-100 text-surface-900'}`}
                 />
               </div>
               <ToggleField
