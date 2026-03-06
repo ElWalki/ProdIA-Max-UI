@@ -55,6 +55,7 @@ export default function App() {
   const [stemSong, setStemSong] = useState<Song | null>(null);
   const [reuseParams, setReuseParams] = useState<GenerationParams | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('acestep_theme') as 'dark' | 'light') || 'dark';
   });
@@ -490,6 +491,8 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
         onOpenSettings={() => setSettingsOpen(true)}
+        assistantOpen={assistantOpen}
+        onToggleAssistant={() => setAssistantOpen(v => !v)}
       />
 
       <main className="flex-1 flex overflow-hidden">
@@ -509,7 +512,7 @@ export default function App() {
         onToggleLike={currentSong ? () => toggleLike(currentSong.id) : undefined}
       />
 
-      <FloatingAssistant />
+      <FloatingAssistant isOpen={assistantOpen} onToggle={() => setAssistantOpen(v => !v)} />
 
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 

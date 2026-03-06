@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   X, Minus, Send, Sparkles, GripVertical,
   Wand2, ListMusic, Sliders, Disc3, Bot, User,
-  RotateCcw, Copy, Check,
+  RotateCcw, Copy, Check, ChevronDown, ChevronRight, Brain,
 } from 'lucide-react';
 import { loadSettings } from '../ui/SettingsModal';
 import type { AiProvider } from '../ui/SettingsModal';
@@ -19,6 +19,11 @@ interface QuickAction {
   icon: React.ReactNode;
   label: string;
   prompt: string;
+}
+
+export interface FloatingAssistantProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 const STORAGE_KEY = 'acestep_assistant_pos';
@@ -41,8 +46,78 @@ function loadHistory(): Message[] {
   return [];
 }
 
+/* ── Collapsible Thinking Block ── */
+function ThinkingBlock({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = content.trim().split('\n');
+  const previewLines = lines.slice(0, 3).join('\n');
+  const hasMore = lines.length > 3;
+
+  return (
+    <div className="my-2 rounded-lg border border-purple-500/30 bg-purple-500/5 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-left hover:bg-purple-500/10 transition-colors"
+      >
+        <Brain className="w-3 h-3 text-purple-400 shrink-0" />
+        <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider">Thinking</span>
+        <div className="flex-1" />
+        {hasMore && (
+          expanded
+            ? <ChevronDown className="w-3 h-3 text-purple-400" />
+            : <ChevronRight className="w-3 h-3 text-purple-400" />
+        )}
+      </button>
+      <div className="px-3 pb-2 text-[11px] text-purple-200/70 leading-relaxed font-mono whitespace-pre-wrap">
+        {expanded ? content.trim() : previewLines}
+        {!expanded && hasMore && (
+          <span className="text-purple-400/60 ml-1">...</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Lightweight Markdown renderer ── */
 function renderMarkdown(text: string): React.ReactNode {
+  // First, split out <think>...</think> blocks
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+  const segments: { type: 'text' | 'think'; content: string }[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = thinkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    segments.push({ type: 'think', content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+  // Handle unclosed <think> (still streaming)
+  if (segments.length === 0) {
+    const openIdx = text.indexOf('<think>');
+    if (openIdx !== -1) {
+      if (openIdx > 0) segments.push({ type: 'text', content: text.slice(0, openIdx) });
+      segments.push({ type: 'think', content: text.slice(openIdx + 7) });
+    } else {
+      segments.push({ type: 'text', content: text });
+    }
+  }
+
+  return (
+    <>
+      {segments.map((seg, si) =>
+        seg.type === 'think'
+          ? <ThinkingBlock key={si} content={seg.content} />
+          : <React.Fragment key={si}>{renderMarkdownBlock(seg.content)}</React.Fragment>
+      )}
+    </>
+  );
+}
+
+function renderMarkdownBlock(text: string): React.ReactNode {
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let inCodeBlock = false;
@@ -66,29 +141,29 @@ function renderMarkdown(text: string): React.ReactNode {
       // Bold
       const boldMatch = remaining.match(/^\*\*(.+?)\*\*/);
       if (boldMatch) {
-        parts.push(<strong key={key++} className="font-bold text-white">{boldMatch[1]}</strong>);
+        parts.push(<strong key={key++} className="font-semibold text-accent-300">{boldMatch[1]}</strong>);
         remaining = remaining.slice(boldMatch[0].length);
         continue;
       }
       // Italic
       const italicMatch = remaining.match(/^\*(.+?)\*/);
       if (italicMatch) {
-        parts.push(<em key={key++} className="italic text-surface-200">{italicMatch[1]}</em>);
+        parts.push(<em key={key++} className="italic text-[#c8c8e0]">{italicMatch[1]}</em>);
         remaining = remaining.slice(italicMatch[0].length);
         continue;
       }
       // Plain text - take until next special char
       const nextSpecial = remaining.search(/[`*\[]/);
       if (nextSpecial === -1) {
-        parts.push(<span key={key++}>{remaining}</span>);
+        parts.push(<span key={key++} className="text-[#e0e0ee]">{remaining}</span>);
         break;
       }
       if (nextSpecial === 0) {
         // No match, just take one char
-        parts.push(<span key={key++}>{remaining[0]}</span>);
+        parts.push(<span key={key++} className="text-[#e0e0ee]">{remaining[0]}</span>);
         remaining = remaining.slice(1);
       } else {
-        parts.push(<span key={key++}>{remaining.slice(0, nextSpecial)}</span>);
+        parts.push(<span key={key++} className="text-[#e0e0ee]">{remaining.slice(0, nextSpecial)}</span>);
         remaining = remaining.slice(nextSpecial);
       }
     }
@@ -156,7 +231,7 @@ function renderMarkdown(text: string): React.ReactNode {
     if (bulletMatch) {
       const indent = Math.min(Math.floor(bulletMatch[1].length / 2), 3);
       elements.push(
-        <div key={i} className="flex gap-1.5 text-[13px] text-[#ddd] leading-relaxed" style={{ paddingLeft: indent * 16 }}>
+        <div key={i} className="flex gap-1.5 text-[13px] text-[#e0e0ee] leading-relaxed" style={{ paddingLeft: indent * 16 }}>
           <span className="text-accent-400 shrink-0 mt-0.5">•</span>
           <span>{processInline(bulletMatch[2])}</span>
         </div>
@@ -168,7 +243,7 @@ function renderMarkdown(text: string): React.ReactNode {
     const numMatch = line.match(/^(\s*)\d+\.\s+(.+)/);
     if (numMatch) {
       elements.push(
-        <div key={i} className="flex gap-1.5 text-[13px] text-[#ddd] leading-relaxed">
+        <div key={i} className="flex gap-1.5 text-[13px] text-[#e0e0ee] leading-relaxed">
           <span>{processInline(numMatch[2])}</span>
         </div>
       );
@@ -177,7 +252,7 @@ function renderMarkdown(text: string): React.ReactNode {
 
     // Regular paragraph
     elements.push(
-      <p key={i} className="text-[13px] text-[#ddd] leading-relaxed">{processInline(line)}</p>
+      <p key={i} className="text-[13px] text-[#e0e0ee] leading-relaxed">{processInline(line)}</p>
     );
   }
 
@@ -341,9 +416,14 @@ Keep responses concise and music-focused. Use music terminology.
 If users ask about generation settings, give specific parameter recommendations.
 Format suggestions with clear structure using markdown. Use emojis sparingly for a professional tone.`;
 
-export default function FloatingAssistant() {
+export default function FloatingAssistant({ isOpen: externalOpen, onToggle }: FloatingAssistantProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen ?? internalOpen;
+  const setOpen = useCallback((v: boolean) => {
+    if (onToggle) onToggle();
+    else setInternalOpen(v);
+  }, [onToggle]);
   const [minimized, setMinimized] = useState(false);
   const savedHistory = useMemo(() => loadHistory(), []);
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -523,26 +603,9 @@ export default function FloatingAssistant() {
     { icon: <Sliders className="w-3 h-3" />, label: t('assistant.quickParams'), prompt: t('assistant.quickParamsPrompt') },
   ], [t]);
 
-  // FAB (Floating Action Button)
+  // Not open — render nothing (button is in TopBar now)
   if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-6 z-50 group"
-        title={t('assistant.title')}
-      >
-        <div className="relative w-14 h-14 rounded-2xl
-          bg-gradient-to-br from-accent-600 via-accent-500 to-brand-500
-          text-white shadow-lg shadow-accent-500/30
-          flex items-center justify-center
-          hover:scale-105 active:scale-95
-          transition-all duration-300">
-          <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <Disc3 className="w-6 h-6 animate-[spin_8s_linear_infinite]" />
-        </div>
-        <div className="absolute inset-0 rounded-2xl bg-accent-500/20 animate-ping pointer-events-none" style={{ animationDuration: '3s' }} />
-      </button>
-    );
+    return null;
   }
 
   // Minimized pill

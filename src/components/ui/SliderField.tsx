@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HelpCircle } from 'lucide-react';
 
 interface SliderFieldProps {
   label: string;
@@ -9,11 +10,13 @@ interface SliderFieldProps {
   step?: number;
   suffix?: string;
   disabled?: boolean;
+  tooltip?: string;
 }
 
-export default function SliderField({ label, value, onChange, min, max, step = 1, suffix, disabled }: SliderFieldProps) {
+export default function SliderField({ label, value, onChange, min, max, step = 1, suffix, disabled, tooltip }: SliderFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [showTip, setShowTip] = useState(false);
 
   const handleDoubleClick = () => {
     setEditValue(String(value));
@@ -30,7 +33,23 @@ export default function SliderField({ label, value, onChange, min, max, step = 1
 
   return (
     <div className="flex items-center gap-3">
-      <label className="text-xs text-surface-500 w-24 flex-shrink-0">{label}</label>
+      <label className="text-xs text-surface-500 w-24 flex-shrink-0 flex items-center gap-1">
+        {label}
+        {tooltip && (
+          <span className="relative inline-flex">
+            <HelpCircle
+              className="w-3 h-3 text-surface-400 hover:text-accent-400 cursor-help transition-colors"
+              onMouseEnter={() => setShowTip(true)}
+              onMouseLeave={() => setShowTip(false)}
+            />
+            {showTip && (
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-[#1a1a2e] border border-surface-300/40 text-[10px] text-surface-300 leading-snug whitespace-nowrap z-50 shadow-lg">
+                {tooltip}
+              </span>
+            )}
+          </span>
+        )}
+      </label>
       <input
         type="range"
         min={min}

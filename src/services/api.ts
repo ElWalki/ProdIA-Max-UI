@@ -72,6 +72,10 @@ export const generateApi = {
     dit: { loaded: boolean; model: string | null; is_turbo: boolean };
     llm: { loaded: boolean; model: string | null; backend: string | null };
   }>('/api/generate/backend-status'),
+  getLoadedModels: () => api<{
+    models: { name: string; is_default: boolean }[];
+    default_model: string | null;
+  }>('/v1/models').catch(() => ({ models: [], default_model: null })),
   formatInput: (params: Record<string, unknown>, token: string) =>
     api<Record<string, unknown>>('/api/generate/format', { method: 'POST', body: params, token }),
   getRandomDescription: (token: string) =>

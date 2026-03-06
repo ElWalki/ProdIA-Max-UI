@@ -75,6 +75,7 @@ const en = {
     noTemplates: 'No saved templates',
     loadTemplate: 'Load',
     deleteTemplate: 'Delete template',
+    notDownloaded: 'Not loaded',
   },
   pagination: {
     show: 'Show',
@@ -367,6 +368,23 @@ const en = {
     noProgression: 'No progression set',
     notesPlaced: 'notes placed',
   },
+  tooltip: {
+    bpm: 'Beats per minute — controls the tempo',
+    duration: 'Song length in seconds (0 = auto from lyrics)',
+    key: 'Musical key and scale for the composition',
+    timeSignature: 'Beats per measure (4/4, 3/4, etc.)',
+    steps: 'More steps = higher quality, slower generation',
+    guidance: 'How closely the output follows your prompt',
+    batch: 'Number of variations to generate at once',
+    shift: 'Noise schedule shift — affects tonal character',
+    thinking: 'Enable chain-of-thought reasoning in LM',
+    lmTemperature: 'Creativity/randomness of the language model',
+    lmCfgScale: 'How closely the LM follows the prompt',
+    topK: 'Limits vocabulary to top K most likely tokens',
+    topP: 'Nucleus sampling — probability threshold',
+    repaintStart: 'Start position for audio repainting (0-1)',
+    repaintEnd: 'End position for audio repainting (0-1)',
+  },
 };
 
 const es: typeof en = {
@@ -442,6 +460,7 @@ const es: typeof en = {
     noTemplates: 'Sin plantillas guardadas',
     loadTemplate: 'Cargar',
     deleteTemplate: 'Eliminar plantilla',
+    notDownloaded: 'No cargado',
   },
   pagination: {
     show: 'Mostrar',
@@ -733,6 +752,23 @@ const es: typeof en = {
     composerHint: 'Afecta al modelo latente de generación de audio',
     noProgression: 'Sin progresión',
     notesPlaced: 'notas colocadas',
+  },
+  tooltip: {
+    bpm: 'Pulsaciones por minuto — controla el tempo',
+    duration: 'Duración en segundos (0 = auto según letras)',
+    key: 'Tonalidad y escala de la composición',
+    timeSignature: 'Pulsos por compás (4/4, 3/4, etc.)',
+    steps: 'Más pasos = mejor calidad, generación más lenta',
+    guidance: 'Qué tanto sigue la salida tu prompt',
+    batch: 'Número de variaciones a generar a la vez',
+    shift: 'Desplazamiento del schedule de ruido',
+    thinking: 'Activa razonamiento chain-of-thought en LM',
+    lmTemperature: 'Creatividad/aleatoriedad del modelo de lenguaje',
+    lmCfgScale: 'Qué tanto sigue el LM al prompt',
+    topK: 'Limita vocabulario a los K tokens más probables',
+    topP: 'Muestreo por núcleo — umbral de probabilidad',
+    repaintStart: 'Posición inicio del repintado de audio (0-1)',
+    repaintEnd: 'Posición fin del repintado de audio (0-1)',
   },
 };
 

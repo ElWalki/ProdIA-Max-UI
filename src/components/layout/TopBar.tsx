@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Music, Sun, Moon, User, LogOut, Globe, Settings } from 'lucide-react';
+import { Music, Sun, Moon, User, LogOut, Globe, Settings, Disc3 } from 'lucide-react';
 import type { View } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
@@ -10,6 +10,8 @@ interface TopBarProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onOpenSettings?: () => void;
+  assistantOpen?: boolean;
+  onToggleAssistant?: () => void;
 }
 
 const NAV_ITEMS: { view: View; key: string }[] = [
@@ -20,7 +22,7 @@ const NAV_ITEMS: { view: View; key: string }[] = [
   { view: 'gpu', key: 'nav.gpu' },
 ];
 
-export default function TopBar({ currentView, onNavigate, theme, onToggleTheme, onOpenSettings }: TopBarProps) {
+export default function TopBar({ currentView, onNavigate, theme, onToggleTheme, onOpenSettings, assistantOpen, onToggleAssistant }: TopBarProps) {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const [langOpen, setLangOpen] = useState(false);
@@ -68,6 +70,19 @@ export default function TopBar({ currentView, onNavigate, theme, onToggleTheme, 
 
       {/* Right controls */}
       <div className="flex items-center gap-2">
+        {/* AI Assistant toggle */}
+        <button
+          onClick={onToggleAssistant}
+          className={`p-2 rounded-lg transition-colors relative ${
+            assistantOpen
+              ? 'text-accent-400 bg-accent-500/15'
+              : 'text-surface-500 hover:text-surface-800 hover:bg-surface-100'
+          }`}
+          title={t('assistant.title')}
+        >
+          <Disc3 className={`w-4 h-4 ${assistantOpen ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
+        </button>
+
         {/* Language switcher */}
         <div ref={langRef} className="relative">
           <button

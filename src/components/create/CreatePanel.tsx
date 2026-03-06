@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu } from 'lucide-react';
+import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu, ChevronDown, Check } from 'lucide-react';
 import CollapsibleSection from '../ui/CollapsibleSection';
 import SliderField from '../ui/SliderField';
 import SelectField from '../ui/SelectField';
@@ -84,13 +84,27 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
     localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
   }, [savedTemplates]);
 
-  // DIT Model options
+  // DIT Model options (correct backend directory names)
   const DIT_MODELS = [
-    { value: '', label: 'Auto' },
-    { value: 'ace-step-v1-5-sft', label: 'SFT' },
-    { value: 'ace-step-v1-5-base', label: 'Base' },
-    { value: 'ace-step-v1-5-turbo', label: 'Turbo' },
+    { value: 'acestep-v15-sft', label: 'SFT', color: 'accent' },
+    { value: 'acestep-v15-base', label: 'Base', color: 'emerald' },
+    { value: 'acestep-v15-turbo', label: 'Turbo', color: 'amber' },
   ];
+
+  // Model status — which models are loaded in backend
+  const [loadedModels, setLoadedModels] = useState<string[]>([]);
+  const [showModelMenu, setShowModelMenu] = useState(false);
+
+  // Fetch loaded models on mount
+  useEffect(() => {
+    generateApi.getLoadedModels().then(r => {
+      setLoadedModels(r.models.map(m => m.name));
+      // If no model selected yet, pick the default
+      if (!params.ditModel && r.default_model) {
+        set('ditModel', r.default_model);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Mic recorder
   const [showMicRecorder, setShowMicRecorder] = useState(false);
@@ -337,25 +351,60 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {/* Model switcher + Templates bar */}
         <div className="flex items-center gap-1.5 mb-1">
-          {/* DiT Model pills */}
-          <div className="flex items-center gap-0.5 bg-surface-100 rounded-lg p-0.5 border border-surface-300/40">
-            <Cpu className="w-3 h-3 text-surface-400 mx-1" />
-            {DIT_MODELS.map(m => (
-              <button
-                key={m.value}
-                onClick={() => set('ditModel', m.value || undefined)}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
-                  (params.ditModel || '') === m.value
-                    ? m.value.includes('turbo') ? 'bg-amber-500 text-white shadow-sm' :
-                      m.value.includes('sft') ? 'bg-accent-500 text-white shadow-sm' :
-                      m.value.includes('base') ? 'bg-emerald-500 text-white shadow-sm' :
-                      'bg-surface-300 text-surface-900 shadow-sm'
-                    : 'text-surface-500 hover:text-surface-800 hover:bg-surface-200'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+          {/* DiT Model selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowModelMenu(!showModelMenu)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-100 border border-surface-300/40 hover:border-accent-500/40 transition-colors text-xs"
+            >
+              <Cpu className="w-3 h-3 text-surface-400" />
+              <span className="font-semibold text-surface-800">
+                {DIT_MODELS.find(m => m.value === params.ditModel)?.label || 'Turbo'}
+              </span>
+              {loadedModels.includes(params.ditModel || '') && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              )}
+              <ChevronDown className="w-3 h-3 text-surface-400" />
+            </button>
+            {showModelMenu && (
+              <div className="absolute left-0 top-full mt-1 w-52 bg-surface-100 border border-surface-300 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-3 py-1.5 border-b border-surface-300/40">
+                  <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider">{t('create.ditModel', 'Model')}</span>
+                </div>
+                {DIT_MODELS.map(m => {
+                  const isLoaded = loadedModels.includes(m.value);
+                  const isSelected = params.ditModel === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      onClick={() => { set('ditModel', m.value); setShowModelMenu(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+                        isSelected ? 'bg-accent-500/10' : 'hover:bg-surface-200'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${
+                        m.color === 'amber' ? 'bg-amber-500' :
+                        m.color === 'emerald' ? 'bg-emerald-500' : 'bg-accent-500'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-xs font-semibold block ${isSelected ? 'text-accent-400' : 'text-surface-800'}`}>
+                          {m.label}
+                        </span>
+                        <span className="text-[10px] text-surface-400 block">{m.value}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isLoaded ? (
+                          <span className="text-[9px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-medium">{t('settings.loaded', 'Loaded')}</span>
+                        ) : (
+                          <span className="text-[9px] text-surface-400 bg-surface-200 px-1.5 py-0.5 rounded font-medium">{t('create.notDownloaded', 'Not loaded')}</span>
+                        )}
+                        {isSelected && <Check className="w-3 h-3 text-accent-400" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="flex-1" />
           {/* Template save/load */}
@@ -549,15 +598,15 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
               onToggle={() => toggleSection('music')}
               badge={params.bpm ? `${params.bpm} BPM` : undefined}
             >
-              <SliderField label={t('create.bpm')} value={params.bpm} onChange={v => set('bpm', v)} min={30} max={300} />
+              <SliderField label={t('create.bpm')} value={params.bpm} onChange={v => set('bpm', v)} min={30} max={300} tooltip={t('tooltip.bpm')} />
               <div className="space-y-1">
-                <SliderField label={t('create.duration')} value={params.duration} onChange={v => set('duration', v)} min={0} max={600} suffix={params.duration === 0 ? 'Auto' : t('create.seconds')} />
+                <SliderField label={t('create.duration')} value={params.duration} onChange={v => set('duration', v)} min={0} max={600} suffix={params.duration === 0 ? 'Auto' : t('create.seconds')} tooltip={t('tooltip.duration')} />
                 {params.duration === 0 && (
                   <p className="text-[10px] text-accent-400 ml-1">{t('create.durationAuto', 'Auto: duration based on lyrics & structure')}</p>
                 )}
               </div>
-              <SelectField label={t('create.key')} value={params.keyScale} onChange={v => set('keyScale', v)} options={keyOptions} />
-              <SelectField label={t('create.timeSignature')} value={params.timeSignature} onChange={v => set('timeSignature', v)} options={tsOptions} />
+              <SelectField label={t('create.key')} value={params.keyScale} onChange={v => set('keyScale', v)} options={keyOptions} tooltip={t('tooltip.key')} />
+              <SelectField label={t('create.timeSignature')} value={params.timeSignature} onChange={v => set('timeSignature', v)} options={tsOptions} tooltip={t('tooltip.timeSignature')} />
               {/* Chord Progression — open in modal */}
               <div className="pt-1">
                 <button
@@ -680,10 +729,10 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
               isOpen={openSections.generation}
               onToggle={() => toggleSection('generation')}
             >
-              <SliderField label={t('create.steps')} value={params.inferenceSteps} onChange={v => set('inferenceSteps', v)} min={10} max={200} />
-              <SliderField label={t('create.guidance')} value={params.guidanceScale} onChange={v => set('guidanceScale', v)} min={1} max={30} step={0.5} />
-              <SliderField label={t('create.batch')} value={params.batchSize} onChange={v => set('batchSize', v)} min={1} max={8} />
-              <SliderField label={t('create.shift')} value={params.shift} onChange={v => set('shift', v)} min={0} max={10} step={0.5} />
+              <SliderField label={t('create.steps')} value={params.inferenceSteps} onChange={v => set('inferenceSteps', v)} min={10} max={200} tooltip={t('tooltip.steps')} />
+              <SliderField label={t('create.guidance')} value={params.guidanceScale} onChange={v => set('guidanceScale', v)} min={1} max={30} step={0.5} tooltip={t('tooltip.guidance')} />
+              <SliderField label={t('create.batch')} value={params.batchSize} onChange={v => set('batchSize', v)} min={1} max={8} tooltip={t('tooltip.batch')} />
+              <SliderField label={t('create.shift')} value={params.shift} onChange={v => set('shift', v)} min={0} max={10} step={0.5} tooltip={t('tooltip.shift')} />
               <div className="flex items-center gap-3">
                 <label className="text-xs text-surface-500 w-24">{t('create.seed')}</label>
                 <div className="flex-1 flex items-center gap-2">
@@ -698,7 +747,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                   )}
                 </div>
               </div>
-              <ToggleField label={t('create.thinking')} value={params.thinking} onChange={v => set('thinking', v)} />
+              <ToggleField label={t('create.thinking')} value={params.thinking} onChange={v => set('thinking', v)} tooltip={t('tooltip.thinking')} />
               <div className="flex gap-3">
                 <SelectField label={t('create.format')} value={params.audioFormat} onChange={v => set('audioFormat', v as 'mp3' | 'flac')} options={[{ value: 'mp3', label: 'MP3' }, { value: 'flac', label: 'FLAC' }]} />
                 <SelectField label={t('create.method')} value={params.inferMethod} onChange={v => set('inferMethod', v as 'ode' | 'sde')} options={[{ value: 'ode', label: 'ODE' }, { value: 'sde', label: 'SDE' }]} />
@@ -711,10 +760,10 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
               isOpen={openSections.lm}
               onToggle={() => toggleSection('lm')}
             >
-              <SliderField label={t('create.temperature')} value={params.lmTemperature} onChange={v => set('lmTemperature', v)} min={0} max={2} step={0.05} />
-              <SliderField label={t('create.cfgScale')} value={params.lmCfgScale} onChange={v => set('lmCfgScale', v)} min={0} max={5} step={0.1} />
-              <SliderField label={t('create.topK')} value={params.lmTopK} onChange={v => set('lmTopK', v)} min={1} max={500} />
-              <SliderField label={t('create.topP')} value={params.lmTopP} onChange={v => set('lmTopP', v)} min={0} max={1} step={0.01} />
+              <SliderField label={t('create.temperature')} value={params.lmTemperature} onChange={v => set('lmTemperature', v)} min={0} max={2} step={0.05} tooltip={t('tooltip.lmTemperature')} />
+              <SliderField label={t('create.cfgScale')} value={params.lmCfgScale} onChange={v => set('lmCfgScale', v)} min={0} max={5} step={0.1} tooltip={t('tooltip.lmCfgScale')} />
+              <SliderField label={t('create.topK')} value={params.lmTopK} onChange={v => set('lmTopK', v)} min={1} max={500} tooltip={t('tooltip.topK')} />
+              <SliderField label={t('create.topP')} value={params.lmTopP} onChange={v => set('lmTopP', v)} min={0} max={1} step={0.01} tooltip={t('tooltip.topP')} />
               <div className="flex items-center gap-3">
                 <label className="text-xs text-surface-500 w-24">{t('create.negativePrompt')}</label>
                 <input
@@ -734,8 +783,8 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
               onToggle={() => toggleSection('expert')}
             >
               <SelectField label={t('create.taskType')} value={params.taskType || ''} onChange={v => set('taskType', v || undefined)} options={taskOptions} />
-              <SliderField label={t('create.repaintStart')} value={params.repaintingStart ?? 0} onChange={v => set('repaintingStart', v)} min={0} max={1} step={0.05} />
-              <SliderField label={t('create.repaintEnd')} value={params.repaintingEnd ?? 1} onChange={v => set('repaintingEnd', v)} min={0} max={1} step={0.05} />
+              <SliderField label={t('create.repaintStart')} value={params.repaintingStart ?? 0} onChange={v => set('repaintingStart', v)} min={0} max={1} step={0.05} tooltip={t('tooltip.repaintStart')} />
+              <SliderField label={t('create.repaintEnd')} value={params.repaintingEnd ?? 1} onChange={v => set('repaintingEnd', v)} min={0} max={1} step={0.05} tooltip={t('tooltip.repaintEnd')} />
               <ToggleField label="ADG" value={params.useAdg ?? false} onChange={v => set('useAdg', v)} />
               {(params.sourceAudioUrl || params.taskType === 'cover') && (
                 <SliderField label={t('create.coverStrength')} value={params.audioCoverStrength ?? 0.5} onChange={v => set('audioCoverStrength', v)} min={0} max={1} step={0.05} />
