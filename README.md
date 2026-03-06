@@ -228,7 +228,7 @@ All endpoints are relative (`/api/...`) — the UI is backend-agnostic.
 ## Credits
 
 - **[ElWalki](https://github.com/ElWalki)** — Creator & Lead Developer
-- **Scruffy** — Contributed the i18n internationalization system (EN/ES)
+- **[Scruffy](https://github.com/scruffynerf)** — Contributed the i18n internationalization system (EN/ES)
 - **[ACE-Step](https://github.com/ace-step)** — Core music generation engine
 
 ## License
