@@ -524,7 +524,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsChange }: Pro
                   <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-200/30">
                     <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center text-[10px] font-bold text-emerald-400">S</div>
                     <div>
-                      <span className="text-xs font-semibold text-surface-900 block">Scruffy</span>
+                      <a href="https://github.com/scruffynerf" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent-400 hover:text-accent-300 hover:underline block">Scruffy</a>
                       <span className="text-[10px] text-surface-400">{t('settings.creditScruffy', 'Contributor — i18n internationalization system (EN/ES)')}</span>
                     </div>
                   </div>
