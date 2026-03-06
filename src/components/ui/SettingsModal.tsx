@@ -517,7 +517,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsChange }: Pro
                   <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-200/30">
                     <div className="w-7 h-7 rounded-full bg-accent-500/15 flex items-center justify-center text-[10px] font-bold text-accent-400">W</div>
                     <div>
-                      <span className="text-xs font-semibold text-surface-900 block">ElWalki</span>
+                      <a href="https://github.com/ElWalki" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent-400 hover:text-accent-300 hover:underline block">ElWalki</a>
                       <span className="text-[10px] text-surface-400">{t('settings.creditLead', 'Creator & Lead Developer')}</span>
                     </div>
                   </div>
@@ -531,7 +531,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsChange }: Pro
                   <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-200/30">
                     <div className="w-7 h-7 rounded-full bg-blue-500/15 flex items-center justify-center text-[10px] font-bold text-blue-400">A</div>
                     <div>
-                      <span className="text-xs font-semibold text-surface-900 block">ACE-Step</span>
+                      <a href="https://github.com/ACE-Step" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent-400 hover:text-accent-300 hover:underline block">ACE-Step</a>
                       <span className="text-[10px] text-surface-400">{t('settings.creditAceStep', 'Core music generation engine')}</span>
                     </div>
                   </div>
