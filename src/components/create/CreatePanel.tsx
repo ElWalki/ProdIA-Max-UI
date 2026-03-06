@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu, ChevronDown, Check, Palette } from 'lucide-react';
+import { Sparkles, Wand2, Upload, X, Dice5, Loader2, Mic, Music, Sliders, Piano, Save, FolderOpen, Trash2, Cpu, ChevronDown, Check, Palette, Download, RefreshCw } from 'lucide-react';
 import CollapsibleSection from '../ui/CollapsibleSection';
 import SliderField from '../ui/SliderField';
 import SelectField from '../ui/SelectField';
@@ -107,6 +107,24 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
     }).catch(() => {});
   }, []);
 
+  // LM model size & backend state
+  const LM_SIZES = [
+    { value: 'acestep-5Hz-lm-0.6B', label: '0.6B', vram: '~0.5 GB' },
+    { value: 'acestep-5Hz-lm-1.7B', label: '1.7B', vram: '~1.5 GB' },
+    { value: 'acestep-5Hz-lm-4B', label: '4B', vram: '~4 GB' },
+  ];
+  const [lmSwapping, setLmSwapping] = useState(false);
+  const [currentLmModel, setCurrentLmModel] = useState<string | null>(null);
+  const [currentLmBackend, setCurrentLmBackend] = useState<string | null>(null);
+
+  // Fetch current LLM status on mount
+  useEffect(() => {
+    generateApi.getBackendStatus().then(s => {
+      if (s.llm?.model) setCurrentLmModel(s.llm.model);
+      if (s.llm?.backend) setCurrentLmBackend(s.llm.backend);
+    }).catch(() => {});
+  }, []);
+
   // Mic recorder
   const [showMicRecorder, setShowMicRecorder] = useState(false);
   const [micTarget, setMicTarget] = useState<'reference' | 'cover' | 'vocal'>('vocal');
@@ -143,6 +161,23 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
   const set = useCallback(<K extends keyof GenerationParams>(key: K, val: GenerationParams[K]) => {
     setParams(p => ({ ...p, [key]: val }));
   }, []);
+
+  // Swap LM model handler
+  const handleSwapLm = useCallback(async (modelPath: string, backend: string) => {
+    if (!token || lmSwapping) return;
+    setLmSwapping(true);
+    try {
+      const r = await generateApi.swapLlmModel(modelPath, backend, token);
+      if (r.success) {
+        setCurrentLmModel(r.model);
+        setCurrentLmBackend(r.backend);
+        set('lmModel', modelPath);
+        set('lmBackend', backend as 'pt' | 'vllm');
+      }
+    } catch { /* ignore */ } finally {
+      setLmSwapping(false);
+    }
+  }, [token, lmSwapping, set]);
 
   const toggleSection = useCallback((key: string) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -623,7 +658,7 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 {/* Color toggle button */}
                 <button
                   onClick={() => setColoredLyrics(v => !v)}
-                  className={`absolute top-1 right-1 z-20 p-1 rounded transition-colors ${
+                  className={`absolute top-1 right-1 z-20 p-1 rounded transition-colors pointer-events-auto ${
                     coloredLyrics
                       ? 'text-accent-400 bg-accent-500/15 hover:bg-accent-500/25'
                       : 'text-surface-500 hover:text-surface-700 hover:bg-surface-200'
@@ -632,20 +667,6 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                 >
                   <Palette className="w-3.5 h-3.5" />
                 </button>
-                {/* Colored overlay — sits behind transparent textarea text */}
-                {coloredLyrics && params.lyrics && !params.instrumental && (
-                  <div
-                    ref={overlayRef}
-                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none overflow-hidden rounded-md z-[1]"
-                  >
-                    <div
-                      className="px-2 py-1.5 font-mono text-xs"
-                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.5' }}
-                    >
-                      {renderColoredLyrics(params.lyrics)}
-                    </div>
-                  </div>
-                )}
                 <textarea
                   value={params.lyrics}
                   onChange={e => set('lyrics', e.target.value)}
@@ -658,11 +679,25 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
                   rows={6}
                   ref={lyricsRef}
                   disabled={params.instrumental}
-                  style={coloredLyrics && params.lyrics ? { lineHeight: '1.5', color: 'transparent', caretColor: '#e0e0ee' } : { lineHeight: '1.5' }}
-                  className={`relative z-[2] w-full border border-surface-300 rounded-md px-2 py-1.5 placeholder:text-surface-400 min-h-[100px] max-h-[500px] font-mono text-xs no-scrollbar ${
-                    params.instrumental ? 'opacity-40 cursor-not-allowed text-surface-900 bg-surface-100' : ''
-                  } ${coloredLyrics && params.lyrics ? 'bg-transparent' : 'bg-surface-100 text-surface-900'}`}
+                  style={coloredLyrics && params.lyrics && !params.instrumental ? { lineHeight: '1.5', color: 'transparent', caretColor: '#e0e0ee' } : { lineHeight: '1.5' }}
+                  className={`relative w-full bg-surface-100 border border-surface-300 rounded-md px-2 py-1.5 text-surface-900 placeholder:text-surface-400 min-h-[100px] max-h-[500px] font-mono text-xs no-scrollbar ${
+                    params.instrumental ? 'opacity-40 cursor-not-allowed' : ''
+                  }`}
                 />
+                {/* Colored overlay — sits ABOVE textarea text, pointer-events-none */}
+                {coloredLyrics && params.lyrics && !params.instrumental && (
+                  <div
+                    ref={overlayRef}
+                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none overflow-hidden rounded-md z-10"
+                  >
+                    <div
+                      className="px-2 py-1.5 font-mono text-xs"
+                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.5' }}
+                    >
+                      {renderColoredLyrics(params.lyrics)}
+                    </div>
+                  </div>
+                )}
                 {/* Bottom resize handle */}
                 <div
                   className="textarea-resize-handle"
@@ -870,7 +905,63 @@ export default memo(function CreatePanel({ onGenerate, isGenerating, activeJobCo
               title={t('create.sections.lm')}
               isOpen={openSections.lm}
               onToggle={() => toggleSection('lm')}
+              badge={currentLmModel ? LM_SIZES.find(s => currentLmModel.includes(s.label))?.label : undefined}
             >
+              {/* LM Model Size selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-surface-500 font-medium">{t('create.lmModelLabel', 'LM Model')}</label>
+                <div className="flex gap-1.5">
+                  {LM_SIZES.map(s => {
+                    const isActive = currentLmModel?.includes(s.label);
+                    return (
+                      <button
+                        key={s.value}
+                        disabled={lmSwapping}
+                        onClick={() => handleSwapLm(s.value, params.lmBackend || 'pt')}
+                        className={`flex-1 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                          isActive
+                            ? 'bg-accent-500/15 border-accent-500/40 text-accent-400'
+                            : 'bg-surface-100 border-surface-300/40 text-surface-500 hover:border-accent-500/30 hover:text-surface-700'
+                        } ${lmSwapping ? 'opacity-50' : ''}`}
+                      >
+                        <span className="font-bold">{s.label}</span>
+                        <span className="text-[9px] opacity-70">{s.vram}</span>
+                        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {lmSwapping && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-accent-400">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    {t('create.lmSwapping', 'Loading model...')}
+                  </div>
+                )}
+                <p className="text-[10px] text-surface-400">{t('create.lmModelHint', 'Auto-downloads if not present. Larger = better quality, more VRAM.')}</p>
+              </div>
+              {/* LM Backend toggle */}
+              <div className="space-y-1">
+                <label className="text-xs text-surface-500 font-medium">{t('create.lmBackendLabel', 'LM Backend')}</label>
+                <div className="flex gap-1.5">
+                  {(['pt', 'vllm'] as const).map(b => {
+                    const isActive = (params.lmBackend || currentLmBackend || 'pt') === b;
+                    return (
+                      <button
+                        key={b}
+                        onClick={() => set('lmBackend', b)}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          isActive
+                            ? 'bg-accent-500/15 border-accent-500/40 text-accent-400'
+                            : 'bg-surface-100 border-surface-300/40 text-surface-500 hover:border-accent-500/30'
+                        }`}
+                      >
+                        {b === 'pt' ? 'PyTorch' : 'vLLM'}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-surface-400">{t('create.lmBackendHint', 'PT uses less VRAM, vLLM may be faster on powerful GPUs.')}</p>
+              </div>
               <SliderField label={t('create.temperature')} value={params.lmTemperature} onChange={v => set('lmTemperature', v)} min={0} max={2} step={0.05} tooltip={t('tooltip.lmTemperature')} />
               <SliderField label={t('create.cfgScale')} value={params.lmCfgScale} onChange={v => set('lmCfgScale', v)} min={0} max={5} step={0.1} tooltip={t('tooltip.lmCfgScale')} />
               <SliderField label={t('create.topK')} value={params.lmTopK} onChange={v => set('lmTopK', v)} min={1} max={500} tooltip={t('tooltip.topK')} />

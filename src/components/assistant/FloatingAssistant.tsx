@@ -469,13 +469,36 @@ export default function FloatingAssistant({ isOpen: externalOpen, onToggle }: Fl
 
   // Clamp position to viewport
   const clamp = useCallback((x: number, y: number) => {
-    const w = panelRef.current?.offsetWidth ?? 400;
+    const w = panelRef.current?.offsetWidth ?? 420;
     const h = panelRef.current?.offsetHeight ?? 600;
     return {
       x: Math.max(0, Math.min(window.innerWidth - w, x)),
       y: Math.max(0, Math.min(window.innerHeight - h, y)),
     };
   }, []);
+
+  // Ensure panel is visible when opened or window is resized
+  useEffect(() => {
+    if (!open || minimized) return;
+    const w = 420, h = 600;
+    const isOutside = pos.x + w < 0 || pos.x > window.innerWidth ||
+                      pos.y + h < 0 || pos.y > window.innerHeight;
+    if (isOutside) {
+      // Center if completely off-screen
+      setPos({ x: Math.max(0, (window.innerWidth - w) / 2), y: Math.max(0, (window.innerHeight - h) / 2) });
+    } else {
+      setPos(clamp(pos.x, pos.y));
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clamp on window resize
+  useEffect(() => {
+    const onResize = () => {
+      setPos((prev: { x: number; y: number }) => clamp(prev.x, prev.y));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [clamp]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();

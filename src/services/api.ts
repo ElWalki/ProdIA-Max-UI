@@ -81,6 +81,12 @@ export const generateApi = {
   getRandomDescription: (token: string) =>
     api<{ description: string; instrumental: boolean; vocalLanguage: string }>('/api/generate/random-description', { token }),
 
+  // LLM model swap
+  swapLlmModel: (model: string, backend: string, token: string) =>
+    api<{ success: boolean; message: string; model: string | null; backend: string | null }>(
+      '/api/generate/llm/swap', { method: 'POST', body: { model, backend }, token }
+    ),
+
   // LoRA
   loadLora: (params: { lora_path: string }, token: string) =>
     api<{ message: string; lora_path: string; trigger_tag?: string }>('/api/lora/load', { method: 'POST', body: params, token }),
